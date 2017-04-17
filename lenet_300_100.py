@@ -8,7 +8,7 @@ from tensorflow.contrib.layers.python.layers.regularizers import l2_regularizer
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # Create the model
-x = tf.placeholder(tf.float32, [None, 784])
+x = tf.placeholder(tf.float32, [None, 784], name='x')
 
 n_hidden_1 = 300  # 1st layer num features
 n_hidden_2 = 100  # 2nd layer num features
@@ -16,10 +16,15 @@ n_input = 784  # MNIST data input (img shape: 28*28)
 n_classes = 10  # MNIST total classes (0-9 digits)
 
 W = {
-    'fc1': tf.Variable(tf.random_normal([n_input, n_hidden_1], stddev=0.01)),
+    'fc1':
+    tf.Variable(
+        tf.random_normal([n_input, n_hidden_1], stddev=0.01), name='fc1'),
     'fc2':
-    tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2], stddev=0.01)),
-    'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes], stddev=0.01))
+    tf.Variable(
+        tf.random_normal([n_hidden_1, n_hidden_2], stddev=0.01), name='fc2'),
+    'out':
+    tf.Variable(
+        tf.random_normal([n_hidden_2, n_classes], stddev=0.01), name='out')
 }
 
 biases = {
@@ -49,10 +54,10 @@ def l1(x=0.0001):
 l = model(x, W, biases)
 
 # Define loss and optimizer
-y_ = tf.placeholder(tf.float32, [None, 10])
+y_ = tf.placeholder(tf.float32, [None, 10], name='y_')
 
 correct_prediction = tf.equal(tf.argmax(l, 1), tf.argmax(y_, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='acc')
 
 cross_entropy = tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=l))
@@ -81,19 +86,23 @@ print(
         accuracy, feed_dict={x: mnist.test.images,
                              y_: mnist.test.labels}))
 
+saver = tf.train.Saver()
+tf.add_to_collection('accuracy', accuracy)
+saver.save(sess, save_path='./savedmodel')
+
 
 def prune(x):
     y_noprune = sess.run(x)
     y_noprune = np.asarray(y_noprune)
-    low_values_indices = abs(y_noprune) < 0.04
+    low_values_indices = abs(y_noprune) < 0.05
     y_prune = y_noprune
     y_prune[low_values_indices] = 0
     return y_noprune, y_prune
 
 
-w_fc1_, w_fc1 = prune(W['fc1'])
-
 W_prune = {}
+
+w_fc1_, w_fc1 = prune(W['fc1'])
 W_prune['fc1'] = W['fc1'].assign(w_fc1, use_locking=False)
 
 w_fc2_, w_fc2 = prune(W['fc2'])
@@ -115,8 +124,3 @@ print(
     sess.run(
         accuracy, feed_dict={x: mnist.test.images,
                              y_: mnist.test.labels}))
-
-print(W)
-print(W_prune)
-#saver = tf.train.Saver()
-#print(saver.save(sess, save_path='./savedmodel'))
