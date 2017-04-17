@@ -22,8 +22,6 @@ W = {
     'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes], stddev=0.01))
 }
 
-W_prune = W
-
 biases = {
     'fc1': tf.Variable(tf.random_normal([n_hidden_1], stddev=0.01)),
     'fc2': tf.Variable(tf.random_normal([n_hidden_2], stddev=0.01)),
@@ -69,7 +67,7 @@ sess = tf.InteractiveSession()
 tf.global_variables_initializer().run()
 
 # Train
-for i in range(1000):
+for i in range(3000):
     batch_xs, batch_ys = mnist.train.next_batch(100)
     if i % 100 == 0:
         train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys})
@@ -87,13 +85,15 @@ print(
 def prune(x):
     y_noprune = sess.run(x)
     y_noprune = np.asarray(y_noprune)
-    low_values_indices = abs(y_noprune) < 0.01
+    low_values_indices = abs(y_noprune) < 0.04
     y_prune = y_noprune
     y_prune[low_values_indices] = 0
     return y_noprune, y_prune
 
 
 w_fc1_, w_fc1 = prune(W['fc1'])
+
+W_prune = {}
 W_prune['fc1'] = W['fc1'].assign(w_fc1, use_locking=False)
 
 w_fc2_, w_fc2 = prune(W['fc2'])
@@ -116,5 +116,7 @@ print(
         accuracy, feed_dict={x: mnist.test.images,
                              y_: mnist.test.labels}))
 
+print(W)
+print(W_prune)
 #saver = tf.train.Saver()
 #print(saver.save(sess, save_path='./savedmodel'))
